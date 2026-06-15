@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>카카오톡 그룹채팅 분석</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ─── Apple Design System Tokens ─── */
+:root {
+  --blue:        #0066cc;
+  --blue-dark:   #0071e3;
+  --blue-light:  #2997ff;
+  --ink:         #1d1d1f;
+  --ink-80:      #333333;
+  --ink-48:      #7a7a7a;
+  --canvas:      #ffffff;
+  --parchment:   #f5f5f7;
+  --pearl:       #fafafc;
+  --tile-1:      #272729;
+  --tile-2:      #2a2a2c;
+  --black:       #000000;
+  --hairline:    #e0e0e0;
+  --divider:     #f0f0f0;
+  --on-dark:     #ffffff;
+  --muted-dark:  #cccccc;
+  --kakao:       #FEE500;
+  --kakao-dim:   rgba(254,229,0,0.12);
+  --radius-sm:   8px;
+  --radius-md:   11px;
+  --radius-lg:   18px;
+  --radius-pill: 9999px;
+  --shadow-product: rgba(0,0,0,0.22) 3px 5px 30px 0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--parchment);
+  color: var(--ink);
+  font-family: 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── GLOBAL NAV ─── */
+.g-nav {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(0,0,0,0.88);
+  backdrop-filter: saturate(180%) blur(20px);
+  height: 44px;
+  display: flex; align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.g-nav-inner {
+  width: 100%; max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center; gap: 0;
+}
+.g-nav-logo {
+  font-size: 20px; line-height: 1;
+  color: var(--on-dark);
+  margin-right: 32px; flex-shrink: 0;
+}
+.g-nav-tabs {
+  display: flex; gap: 0; flex: 1;
+}
+.g-nav-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px; font-weight: 400;
+  letter-spacing: -0.12px;
+  padding: 0 14px; height: 44px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.g-nav-btn:hover { color: var(--on-dark); }
+.g-nav-btn.active { color: var(--kakao); }
+.g-nav-period {
+  font-size: 11px; color: rgba(255,255,255,0.45);
+  margin-left: auto; letter-spacing: -0.08px;
+}
+
+/* ─── HERO TILE ─── */
+.hero-tile {
+  background: var(--black);
+  padding: 64px 24px 56px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.hero-tile::before {
+  content: '';
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 500px; height: 300px;
+  background: radial-gradient(ellipse, rgba(254,229,0,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  font-size: 14px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--kakao);
+  text-transform: uppercase; margin-bottom: 16px;
+}
+.hero-h1 {
+  font-size: 48px; font-weight: 600;
+  letter-spacing: -0.28px; line-height: 1.07;
+  color: var(--on-dark);
+  margin-bottom: 12px;
+}
+.hero-sub {
+  font-size: 19px; font-weight: 300; line-height: 1.5;
+  color: var(--muted-dark);
+  margin-bottom: 40px;
+}
+.hero-kpi-row {
+  display: flex; gap: 0; justify-content: center;
+  flex-wrap: wrap;
+  max-width: 860px; margin: 0 auto;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.hero-kpi {
+  flex: 1; min-width: 140px;
+  padding: 24px 20px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+}
+.hero-kpi:last-child { border-right: none; }
+.hero-kpi-val {
+  font-size: 30px; font-weight: 700;
+  letter-spacing: -0.5px; color: var(--on-dark);
+  line-height: 1;
+}
+.hero-kpi-val span { font-size: 16px; font-weight: 400; opacity: 0.5; }
+.hero-kpi-lbl {
+  font-size: 11px; color: rgba(255,255,255,0.45);
+  margin-top: 6px; letter-spacing: -0.08px;
+}
+
+/* ─── CONTENT WRAPPER ─── */
+.content { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ─── SECTION TITLES ─── */
+.section-label {
+  font-size: 21px; font-weight: 600;
+  letter-spacing: 0.2px; color: var(--ink);
+  margin-bottom: 20px;
+}
+.section-caption {
+  font-size: 14px; color: var(--ink-48);
+  margin-top: -14px; margin-bottom: 20px;
+  letter-spacing: -0.2px;
+}
+
+/* ─── GRID LAYOUTS ─── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+.grid-full { margin-bottom: 20px; }
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: 0 2px 20px rgba(0,0,0,0.06); }
+.card-dark {
+  background: var(--tile-1);
+  border-color: rgba(255,255,255,0.06);
+}
+
+.card-title {
+  font-size: 14px; font-weight: 600;
+  color: var(--ink-48); letter-spacing: -0.2px;
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+}
+.card-title-dark { color: rgba(255,255,255,0.5); }
+
+/* ─── CHART WRAP ─── */
+.chart-area { position: relative; }
+
+/* ─── DATA TABLE ─── */
+.data-table {
+  width: 100%; border-collapse: collapse;
+  margin-top: 20px;
+  font-size: 13px;
+}
+.data-table thead th {
+  font-size: 11px; font-weight: 600;
+  color: var(--ink-48); letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 0 8px 10px; text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+.data-table thead th:last-child { text-align: right; }
+.data-table tbody tr {
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background: var(--parchment); }
+.data-table tbody tr.selected { background: #eef5ff; }
+.data-table td { padding: 10px 8px; vertical-align: middle; }
+.data-table td:last-child { text-align: right; }
+.td-rank {
+  font-size: 11px; font-weight: 800;
+  color: var(--ink-48); width: 28px;
+}
+.td-rank.r1 { color: #fbbf24; }
+.td-rank.r2 { color: #9ca3af; }
+.td-rank.r3 { color: #b45309; }
+.td-name { font-weight: 600; color: var(--ink); }
+.td-val { font-weight: 700; color: var(--blue); }
+.td-bar { width: 80px; }
+.mini-bar { height: 3px; border-radius: 2px; background: var(--blue); }
+.td-pct { font-size: 11px; color: var(--ink-48); }
+.mbti {
+  display: inline-block;
+  font-size: 10px; font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(0,102,204,0.08);
+  color: var(--blue);
+  border: 1px solid rgba(0,102,204,0.2);
+  margin-left: 4px;
+}
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--canvas);
+  border-radius: var(--radius-lg);
+  width: 480px; max-width: 90vw;
+  max-height: 80vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  transform: translateY(12px) scale(0.97);
+  transition: transform 0.25s cubic-bezier(0.34,1.4,0.64,1);
+  box-shadow: var(--shadow-product);
+}
+.modal-overlay.open .modal { transform: translateY(0) scale(1); }
+.modal-header {
+  display: flex; align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.modal-title {
+  font-size: 17px; font-weight: 600;
+  letter-spacing: -0.374px; flex: 1;
+}
+.modal-badge {
+  background: var(--kakao); color: var(--ink);
+  font-size: 12px; font-weight: 700;
+  padding: 3px 10px; border-radius: var(--radius-pill);
+  margin-right: 12px;
+}
+.modal-close {
+  background: var(--parchment); border: none; cursor: pointer;
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px; color: var(--ink-48);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.modal-close:hover { background: var(--hairline); }
+.modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.modal-msg-list { display: flex; flex-direction: column; gap: 12px; }
+.modal-msg {
+  background: var(--parchment);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 14px; line-height: 1.5;
+  letter-spacing: -0.2px;
+  border-left: 3px solid var(--blue);
+}
+.modal-msg .msg-sender {
+  font-size: 11px; font-weight: 600;
+  color: var(--blue); margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+.modal-msg .msg-text { color: var(--ink-80); }
+.modal-empty {
+  text-align: center; padding: 32px;
+  color: var(--ink-48); font-size: 14px;
+}
+.modal-hint {
+  font-size: 12px; color: var(--ink-48);
+  text-align: center; padding: 12px;
+  border-top: 1px solid var(--divider);
+  letter-spacing: -0.12px;
+}
+
+/* ─── HEATMAP ─── */
+.heatmap-grid {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+.heatmap-row { display: flex; gap: 4px; align-items: center; }
+.heatmap-day-lbl {
+  font-size: 10px; color: var(--ink-48);
+  width: 20px; text-align: right;
+  flex-shrink: 0; font-weight: 600;
+}
+.heatmap-cell {
+  flex: 1; height: 28px;
+  border-radius: 5px;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.heatmap-cell:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 2; }
+.heatmap-date-row {
+  display: flex; gap: 4px;
+  padding-left: 24px;
+  margin-bottom: 6px;
+}
+.heatmap-date-lbl {
+  flex: 1; font-size: 9px; color: var(--ink-48);
+  text-align: center; font-weight: 500;
+}
+
+/* ─── TIMELINE ─── */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.tl-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 0.1s;
+  padding-left: 4px; padding-right: 4px;
+}
+.tl-row:last-child { border-bottom: none; }
+.tl-row:hover { background: var(--parchment); border-radius: var(--radius-sm); }
+.tl-date { font-size: 12px; font-weight: 600; color: var(--ink-48); min-width: 56px; }
+.tl-bar-wrap { flex: 1; }
+.tl-track { height: 6px; background: var(--divider); border-radius: 3px; overflow: hidden; }
+.tl-fill { height: 100%; border-radius: 3px; background: var(--blue); transition: width 1s ease; }
+.tl-meta { font-size: 11px; color: var(--ink-48); margin-top: 2px; }
+.tl-count { font-size: 13px; font-weight: 700; color: var(--ink); min-width: 44px; text-align: right; }
+
+/* ─── KPI ROW ─── */
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.kpi-chip {
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+.kpi-chip::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent-bar, var(--blue));
+}
+.kpi-chip-val { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: var(--ink); line-height: 1; }
+.kpi-chip-lbl { font-size: 11px; color: var(--ink-48); margin-top: 5px; font-weight: 600; letter-spacing: 0.3px; }
+.kpi-chip-sub { font-size: 11px; color: var(--ink-48); margin-top: 2px; }
+
+/* ─── TOOLTIP (hover) ─── */
+.tip {
+  position: fixed; z-index: 999;
+  background: var(--tile-1);
+  color: var(--on-dark);
+  font-size: 12px; padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  pointer-events: none; display: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+/* ─── SCROLL ─── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 2px; }
+
+/* ─── SPACER ─── */
+.sp20 { height: 20px; }
+.sp32 { height: 32px; }
+</style>
+</head>
+<body>
+
+<!-- GLOBAL NAV -->
+<nav class="g-nav">
+  <div class="g-nav-inner">
+    <div class="g-nav-logo">💬</div>
+    <div class="g-nav-tabs">
+      <button class="g-nav-btn active" onclick="switchTab('overview',this)">종합</button>
+      <button class="g-nav-btn" onclick="switchTab('members',this)">멤버</button>
+      <button class="g-nav-btn" onclick="switchTab('time',this)">시간대</button>
+      <button class="g-nav-btn" onclick="switchTab('daily',this)">일별</button>
+    </div>
+    <div class="g-nav-period">2026.05.28 – 06.15 · 19일</div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero-tile">
+  <div class="hero-eyebrow">KakaoTalk Group Analytics</div>
+  <div class="hero-h1">사회화된 직장인 INTP</div>
+  <div class="hero-sub">그룹 채팅 사용 현황 분석 대시보드</div>
+  <div class="hero-kpi-row">
+    <div class="hero-kpi">
+      <div class="hero-kpi-val" id="kv1">0</div>
+      <div class="hero-kpi-lbl">총 메시지</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val">15</div>
+      <div class="hero-kpi-lbl">참여 멤버</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val" id="kv2">0</div>
+      <div class="hero-kpi-lbl">일평균</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val">5,165</div>
+      <div class="hero-kpi-lbl">최고 활동일 (6/12)</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val">462</div>
+      <div class="hero-kpi-lbl">미디어 총계</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-badge" id="modalBadge">-</div>
+      <div class="modal-title" id="modalTitle">주요 발화</div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-msg-list" id="modalList"></div>
+    </div>
+    <div class="modal-hint">차트 또는 테이블 행을 클릭하면 해당 구간의 실제 발화를 확인할 수 있습니다.</div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<!-- ================================================================ -->
+<!-- TAB: OVERVIEW -->
+<!-- ================================================================ -->
+<div class="tab-panel active" id="panel-overview">
+  <div class="content">
+    <div class="section-label">전체 현황</div>
+    <div class="section-caption">클릭하면 해당 구간의 실제 발화 내용을 확인할 수 있습니다.</div>
+
+    <div class="grid-3">
+      <!-- 일별 추이 -->
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>일별 메시지 추이 <small style="font-size:11px;font-weight:400;color:var(--ink-48);margin-left:4px">— 날짜 클릭 시 발화 확인</small></div>
+        <div class="chart-area" style="height:200px"><canvas id="cDaily"></canvas></div>
+        <table class="data-table" id="tblDaily" style="margin-top:16px">
+          <thead><tr>
+            <th>#</th><th>날짜</th><th>메시지</th><th style="text-align:right">비중</th>
+          </tr></thead>
+          <tbody id="tbodyDaily"></tbody>
+        </table>
+      </div>
+      <!-- 요일 분포 -->
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>요일별 분포</div>
+        <div class="chart-area" style="height:200px"><canvas id="cWeekday"></canvas></div>
+        <table class="data-table" style="margin-top:16px">
+          <thead><tr><th>요일</th><th>메시지</th><th style="text-align:right">비중</th></tr></thead>
+          <tbody id="tbodyWd"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- 멤버 점유율 -->
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>멤버별 점유율</div>
+        <div style="display:flex;gap:20px;align-items:center">
+          <div class="chart-area" style="height:200px;flex:1"><canvas id="cPie"></canvas></div>
+        </div>
+        <table class="data-table" style="margin-top:16px">
+          <thead><tr><th>#</th><th>멤버</th><th>메시지</th><th style="text-align:right">비중</th></tr></thead>
+          <tbody id="tbodyPie"></tbody>
+        </table>
+      </div>
+      <!-- 미디어 -->
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>미디어 유형</div>
+        <div class="chart-area" style="height:200px"><canvas id="cMedia"></canvas></div>
+        <table class="data-table" style="margin-top:16px">
+          <thead><tr><th>유형</th><th>건수</th><th style="text-align:right">비중</th></tr></thead>
+          <tbody id="tbodyMedia"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TAB: MEMBERS -->
+<!-- ================================================================ -->
+<div class="tab-panel" id="panel-members">
+  <div class="content">
+    <div class="section-label">멤버 분석</div>
+    <div class="section-caption">멤버 행 클릭 시 주요 발화를 확인할 수 있습니다.</div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>메시지 수 TOP 10</div>
+        <div class="chart-area" style="height:280px"><canvas id="cMemberBar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>평균 메시지 길이 (글자수)</div>
+        <div class="chart-area" style="height:280px"><canvas id="cMsgLen"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-dot"></span>멤버별 상세 랭킹</div>
+      <table class="data-table">
+        <thead><tr>
+          <th>#</th><th>멤버</th><th>점유율</th><th>비중 바</th>
+          <th style="text-align:right">메시지</th>
+          <th style="text-align:right">사진</th>
+          <th style="text-align:right">평균길이</th>
+        </tr></thead>
+        <tbody id="tbodyMember"></tbody>
+      </table>
+    </div>
+
+    <div class="sp20"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="kpi-chip" style="--accent-bar:var(--kakao)">
+        <div class="kpi-chip-val" style="font-size:15px;font-weight:700">마라탕개발자</div>
+        <div class="kpi-chip-lbl">🏆 최다 메시지</div>
+        <div class="kpi-chip-sub">5,200건 / 25.3%</div>
+      </div>
+      <div class="kpi-chip" style="--accent-bar:#34d399">
+        <div class="kpi-chip-val" style="font-size:15px;font-weight:700">마라탕개발자</div>
+        <div class="kpi-chip-lbl">📸 최다 사진 전송</div>
+        <div class="kpi-chip-sub">111건</div>
+      </div>
+      <div class="kpi-chip" style="--accent-bar:#a78bfa">
+        <div class="kpi-chip-val" style="font-size:15px;font-weight:700">김재현 INTP</div>
+        <div class="kpi-chip-lbl">✍️ 최장 발화 (평균)</div>
+        <div class="kpi-chip-sub">평균 13.1자</div>
+      </div>
+      <div class="kpi-chip" style="--accent-bar:#f87171">
+        <div class="kpi-chip-val" style="font-size:15px;font-weight:700">아베</div>
+        <div class="kpi-chip-lbl">⚡ 최단 발화 (평균)</div>
+        <div class="kpi-chip-sub">평균 5.9자</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TAB: TIME -->
+<!-- ================================================================ -->
+<div class="tab-panel" id="panel-time">
+  <div class="content">
+    <div class="section-label">시간대 분석</div>
+    <div class="section-caption">막대 클릭 시 해당 시간대 발화를 확인할 수 있습니다.</div>
+
+    <div class="kpi-row">
+      <div class="kpi-chip" style="--accent-bar:#34d399">
+        <div class="kpi-chip-val">6,079</div>
+        <div class="kpi-chip-lbl">🌅 오전 (06–11시)</div>
+        <div class="kpi-chip-sub">전체 29.5%</div>
+      </div>
+      <div class="kpi-chip" style="--accent-bar:var(--kakao)">
+        <div class="kpi-chip-val">4,463</div>
+        <div class="kpi-chip-lbl">☀️ 점심 (11–14시)</div>
+        <div class="kpi-chip-sub">전체 21.7%</div>
+      </div>
+      <div class="kpi-chip" style="--accent-bar:var(--blue)">
+        <div class="kpi-chip-val">5,818</div>
+        <div class="kpi-chip-lbl">🌆 오후 (14–18시)</div>
+        <div class="kpi-chip-sub">전체 28.3%</div>
+      </div>
+      <div class="kpi-chip" style="--accent-bar:#a78bfa">
+        <div class="kpi-chip-val">4,220</div>
+        <div class="kpi-chip-lbl">🌙 야간 (18시–)</div>
+        <div class="kpi-chip-sub">전체 20.5%</div>
+      </div>
+    </div>
+
+    <div class="card grid-full">
+      <div class="card-title"><span class="card-title-dot"></span>24시간 메시지 분포 — 막대 클릭 시 발화 확인</div>
+      <div class="chart-area" style="height:240px"><canvas id="cHour"></canvas></div>
+      <table class="data-table" style="margin-top:16px">
+        <thead><tr><th>시간대</th><th>메시지</th><th style="text-align:right">비중</th><th>주요 맥락</th></tr></thead>
+        <tbody id="tbodyHour"></tbody>
+      </table>
+    </div>
+
+    <div class="card grid-full" style="margin-top:20px">
+      <div class="card-title"><span class="card-title-dot"></span>날짜 × 요일 히트맵 — 셀 클릭 시 발화 확인</div>
+      <div id="heatmapWrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TAB: DAILY -->
+<!-- ================================================================ -->
+<div class="tab-panel" id="panel-daily">
+  <div class="content">
+    <div class="section-label">일별 활동</div>
+    <div class="section-caption">행 클릭 시 해당 날짜의 주요 발화를 확인할 수 있습니다.</div>
+
+    <div class="card grid-full">
+      <div class="card-title"><span class="card-title-dot"></span>일별 메시지 타임라인</div>
+      <div class="timeline" id="timelineWrap"></div>
+    </div>
+
+    <div class="sp20"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>주차별 메시지 합계</div>
+        <div class="chart-area" style="height:200px"><canvas id="cWeekly"></canvas></div>
+        <table class="data-table" style="margin-top:16px">
+          <thead><tr><th>주차</th><th>기간</th><th style="text-align:right">합계</th></tr></thead>
+          <tbody>
+            <tr><td class="td-name">1주차</td><td style="color:var(--ink-48)">5/28–5/31</td><td class="td-val">3,066</td></tr>
+            <tr><td class="td-name">2주차</td><td style="color:var(--ink-48)">6/1–6/7</td><td class="td-val">4,610</td></tr>
+            <tr><td class="td-name" style="color:var(--blue)">3주차</td><td style="color:var(--ink-48)">6/8–6/14</td><td class="td-val" style="color:var(--blue)">11,496</td></tr>
+            <tr><td class="td-name">4주차</td><td style="color:var(--ink-48)">6/15–</td><td class="td-val">1,368</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-title-dot"></span>평일 vs 주말 비교</div>
+        <div class="chart-area" style="height:200px"><canvas id="cWdWe"></canvas></div>
+        <table class="data-table" style="margin-top:16px">
+          <thead><tr><th>구분</th><th>메시지</th><th style="text-align:right">비중</th></tr></thead>
+          <tbody>
+            <tr><td class="td-name">평일 (월–금)</td><td class="td-val">20,088</td><td class="td-pct" style="text-align:right">97.6%</td></tr>
+            <tr><td class="td-name">주말 (토–일)</td><td class="td-val">492</td><td class="td-pct" style="text-align:right">2.4%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+const TOTAL = 20580;
+
+const DAILY = [
+  {d:'5/28 목',n:616,wd:'목'},{d:'5/29 금',n:2246,wd:'금'},{d:'5/30 토',n:72,wd:'토'},{d:'5/31 일',n:132,wd:'일'},
+  {d:'6/1 월',n:575,wd:'월'},{d:'6/2 화',n:1856,wd:'화'},{d:'6/3 수',n:68,wd:'수'},{d:'6/4 목',n:544,wd:'목'},
+  {d:'6/5 금',n:1456,wd:'금'},{d:'6/6 토',n:141,wd:'토'},{d:'6/7 일',n:10,wd:'일'},{d:'6/8 월',n:1457,wd:'월'},
+  {d:'6/9 화',n:1713,wd:'화'},{d:'6/10 수',n:338,wd:'수'},{d:'6/11 목',n:2692,wd:'목'},{d:'6/12 금',n:5165,wd:'금'},
+  {d:'6/13 토',n:89,wd:'토'},{d:'6/14 일',n:42,wd:'일'},{d:'6/15 월',n:1368,wd:'월'}
+];
+
+const MEMBERS = [
+  {n:'마라탕개발자',c:5200,p:111,al:5.3},{n:'먹밥 ENTP',c:4504,p:66,al:8.3},
+  {n:'배민정(ENTJ)',c:2514,p:19,al:6.7},{n:'몽자 ISFP',c:2399,p:53,al:8.5},
+  {n:'사가을',c:2125,p:45,al:8.6},{n:'아베',c:1618,p:33,al:5.9},
+  {n:'김재현 INTP',c:1107,p:37,al:13.1},{n:'!ME TaT RoN!',c:535,p:0,al:11.0},
+  {n:'제로',c:327,p:3,al:8.0},{n:'내죵내 INTP',c:155,p:0,al:8.3},
+  {n:'Entj 남',c:79,p:0,al:11.1},{n:'큐큐',c:7,p:0,al:9.1},
+  {n:'건실',c:5,p:0,al:3.8},{n:'하늘',c:3,p:0,al:8.3},{n:'유지연',c:2,p:0,al:3.0}
+];
+const WD = {월:3400,화:3569,수:406,목:3852,금:8867,토:302,일:184};
+const HOURS = {0:65,1:28,2:2,3:0,4:0,5:0,6:3,7:42,8:347,9:1273,10:2650,11:2514,12:1180,13:2769,14:1390,15:1919,16:1252,17:1257,18:1025,19:316,20:582,21:694,22:1009,23:263};
+const MEDIA = {사진:367,이모티콘:76,동영상:16,음성메시지:3};
+
+// SAMPLES
+const SAMPLES = {
+  date:{
+    '5/28 목':['[몽자 ISFP] 아베 닉네임 개쩌노','[배민정(ENTJ)] 집도착전부터 빨래를 돌려놓고 재활용하고 저녁을 먹어야지~ 하면서 들어옴','[마라탕개발자] 종로3가 준코에서 만나자','[사가을] 배근철 개웃기네','[!ME TaT RoN!] 세제 뿌리는거 즐겨서 ㅋㅋㅋ'],
+    '5/29 금':['[몽자 ISFP] 노이로제 걸리겠노','[아베] 이재명이 욕먹고','[먹밥 ENTP] 존나 자연스럽게','[마라탕개발자] 어디서 술먹을지가 문제지','[사가을] 넣을까....,,'],
+    '5/30 토':['[배민정(ENTJ)] 이러심ㅋㅋㅋ진짜웃겨','[김재현 INTP] 예체능은 진짜 쉽지않나보군','[!ME TaT RoN!] 밥이 오늘도 수고 했음','[먹밥 ENTP] 투표하다가 도장 제대로 안 찍히는데 이거 맞냐하면서 투표용지 들고 나오는게 맞음?','[김재현 INTP] 어린이보호구역은 지옥이야'],
+    '5/31 일':['[먹밥 ENTP] 또 홧김에 그만하자 지른거 같은데','[몽자 ISFP] 몽친도 두시간 안 했나 하고 톡 올려보는대','[배민정(ENTJ)] 왜싸움?ㅋㅋㅋㅋ','[먹밥 ENTP] 안받길래 걍 연락 안 했는데 10분 뒤쯤 전화와선','[배민정(ENTJ)] 싸울만하긴했는데..?'],
+    '6/1 월':['[아베] 감기도 사라지겠재','[먹밥 ENTP] 계속 사팔 사팔 했는데','[김재현 INTP] 나도 회사에서 지원금 받은 사람이 나뿐이거든','[아베] 열로제 먹고 열이 나아요~','[먹밥 ENTP] ㅇㅇ 재현아 진짜'],
+    '6/2 화':['[마라탕개발자] 어제 강력한 도파민을 나에게 투척해서','[먹밥 ENTP] 나비탕 드실분?','[!ME TaT RoN!] 방장이 나가버렸음??','[몽자 ISFP] 갑자기 나한테 미안하다면서 자기가 넘 모자랐다며','[먹밥 ENTP] 1시간 반을 자버렸노'],
+    '6/3 수':['[김재현 INTP] 투표소가 그래도','[몽자 ISFP] 투표소 잘못찾아갔노','[마라탕개발자] 오늘 고짬 좀 치노','[마라탕개발자] 코숏 원래 이맘때 털 존나 빠디냐?','[몽자 ISFP] 오 꽤 그럴싸하자너?'],
+    '6/4 목':['[먹밥 ENTP] 한 쪽은 아무것도 안 해서 문제고 한 쪽은 일 잘 해놓고 손버릇 드러워서 문제','[몽자 ISFP] 여긴 진짜 코코 뚫어놓은 사람','[몽자 ISFP] 배달 무료가 아니라','[마라탕개발자] 존나 무수히 나오는데도','[먹밥 ENTP] ㄹㅇ 진짜 ㅋㅋ'],
+    '6/5 금':['[내죵내 INTP] 이건 만약에 호남에서 저랬다고 해도 난 문제 된다고 생각해','[마라탕개발자] 옳은 정보를 공유한다는게','[사가을] 120인치 티비 좀','[내죵내 INTP] 당론이 너무 강해 사람들이','[먹밥 ENTP] 좀 심하지 않아?'],
+    '6/6 토':['[몽자 ISFP] 오 달러 1560원 돌파네','[몽자 ISFP] 흥미진진하노 ㅋㅋㅋㅋ','[몽자 ISFP] 불륜 클럽인가 ㅋㅋ 흥미진진하네','[몽자 ISFP] 도대체 뭘까 계속 울부짖음 짐승처럼','[먹밥 ENTP] 기념인지 팔지 ㅈㄴ 고민되노'],
+    '6/7 일':['[몽자 ISFP] 왜케 조용하노','[김재현 INTP] 국물 우러나온 거','[김재현 INTP] 근데 꽃게라면 맛있나','[몽자 ISFP] 일어났더니 아줌마들 가고 남정네 셋이서 재미도 없고','[김재현 INTP] 술과 계집은 중요하지'],
+    '6/8 월':['[몽자 ISFP] 김지원 개이쁘네','[사가을] 서울도 2.5퍼인가 지원해 둠','[먹밥 ENTP] 참고해서 들어야 함','[몽자 ISFP] 근데 재현이 벌때는 얼마 벌었었음?','[마라탕개발자] 오늘 왜이리 바빠'],
+    '6/9 화':['[몽자 ISFP] 신입한테 주말에 뭐 스몰토크 하다가 별생각 없이','[마라탕개발자] 너 식비도 같이 줄어서','[몽자 ISFP] 위장술 완벽','[먹밥 ENTP] 나 진짜 일 하기 싫은데','[마라탕개발자] 걍 아직 오피셜이 아닌데'],
+    '6/10 수':['[사가을] 슈뢰딩거의 곱버스','[먹밥 ENTP] 난 왜 안 주냐고!','[사가을] 음봉을 의미하는 건가요?','[아베] 2700이 아니고','[먹밥 ENTP] 엄마세대들이 쓰자나'],
+    '6/11 목':['[!ME TaT RoN!] 밥이가 오빠네..','[몽자 ISFP] 저 사람부터 먹여보자','[먹밥 ENTP] 강경진압 지시 내려왔는데','[몽자 ISFP] 약간 몸은 외로워서','[마라탕개발자] 어제 뭐했노'],
+    '6/12 금':['[배민정(ENTJ)] 응답해주는 거 어때?','[먹밥 ENTP] 일 효율 떨어짐','[몽자 ISFP] 하늘은 공평하노','[먹밥 ENTP] 재현아 셀카 보내봐','[배민정(ENTJ)] 또 다 방으로 되어 있음'],
+    '6/13 토':['[김재현 INTP] 한끼통살 2개 먹었는데','[아베] 남성연대 이대로 괜찮겠습니까!?','[먹밥 ENTP] ㄹㅇ 개피곤하네','[아베] 나도 참교육 보고 잤는데','[마라탕개발자] 가을이한테 야지 ㅈㄴ먹음'],
+    '6/14 일':['[몽자 ISFP] 으흐흐 까나페 개맛있노','[아베] 키보드 분리가 되노..?','[김재현 INTP] 뺵보이피자도 가격 존나 올리네 결국','[김재현 INTP] 존나 돼지처럼 쳐먹고 싶노 지금','[김재현 INTP] 리센느! 리센느!'],
+    '6/15 월':['[먹밥 ENTP] 강아지 바꿔왔다니까','[아베] 어 나도 저런 소불고기','[배민정(ENTJ)] 그리고 생각보다 많이 안 달아','[먹밥 ENTP] 맨날 조금씩 해보셈','[아베] 근데 먹밥이랑 먹으면 나쁘진 않아']
+  },
+  member:{
+    '마라탕개발자':['일본 몇 번 다녀오더니','틀딱 판매자같음','썸 붕났어 결국?','온갖 산통에 다 겪고 끙끙끙 난리가 남','옛날 생각 난다,,'],
+    '먹밥 ENTP':['가는 동선에 한솥 있어서 한솥 포장 고민 중','한국은 어차피 언론 통제하니까 나는 미국이나 다른 나라서 크게 이슈화해야된다 본다','씨게 데인 거 있어서','나는 좋았습니다..','진짜 늘 고맙다'],
+    '배민정(ENTJ)':['같이 밥먹기 쉽지않음','아니면 그냥 오므라이스 먹을까','아무래도 여자애들이다 보니까','버터풀까지 있는데','집도착 전부터 빨래를 돌려놓고'],
+    '몽자 ISFP':['키미노 운메이노~','월요일 1등 웹툰이었다도라','삼전 ISA 말고 걍 1주 샀던 거 170프로 되어 있노','저거 무슨 표시랬더라','약간 몸은 외로워서'],
+    '사가을':['시발 내가 중산층이지','나 몰래 새벽에 술먹으러 갔나..?','왜 돈을 못 버노','내 입으로 말하기 민망한 것들','만스피 가야지~!'],
+    '아베':['열로제 먹고 열이 나아요~','어떤 의사 나부랭이가','사가을은 대기업이고','아 미친 개웃기네','ㅋㅎㅋㅋㅋㅋㅋㅋ'],
+    '김재현 INTP':['귀 짜르고 해바라기 그리자','뭔 알아쳐먹지도 못할말만 계속 오노 주옥같네','위로 가는 거 보니 2000원 가겠네','그럼 계엄은 언제 해?','09년생 환영 써놔야지요~ 방장님 ㅎㅎ'],
+    '!ME TaT RoN!':['그걸론 안됩니까??','곧 쉰내나는 식초가 되는 거??','크게 잃고 크게 번다','나는 따로 준 거여도','자꾸 예민보스 하는 여자애들처럼'],
+    '제로':['원래 인원이 이정도였음?','Isfj가 극혐임','몇 시간 하나만 하기 가능','멍청한데 신념을 가짐 = SJ','넌 사회화가 되었다고 생각함??'],
+    '내죵내 INTP':['그때 선관위 털었으면 모르죠','원래 방이 있던 거야?','하 이민을 성공했어야 했는데','조리상 의무 아닌가','그 분도 인팁이야?']
+  },
+  hour:{
+    9:['[마라탕개발자] 다른 인팁방 가면','[!ME TaT RoN!] 코인 가고나니... 주식이 코인화 되었네','[몽자 ISFP] 좀 이해가 안 가긴 해','[아베] 재현이가 어제 방 열어줬잖아','[먹밥 ENTP] 합리적 의심이다 ㄹㅇ'],
+    10:['[먹밥 ENTP] 뽑아주기도 싫고','[몽자 ISFP] 45도 각도가 이쁘네','[먹밥 ENTP] 매수 기회주는듯','[몽자 ISFP] 아빠가 서울대교수','[마라탕개발자] 한 번에 이해가 되네'],
+    11:['[마라탕개발자] 아 나도 혼밥하고 싶다','[먹밥 ENTP] 재산축적을 어찌 그래 하는지','[배민정(ENTJ)] ㅋㅋㅋㅋ아 존나 웃기네','[!ME TaT RoN!] 어처구니가 없다 생각해','[마라탕개발자] 어 이게 맞나'],
+    12:['[먹밥 ENTP] 몽자 이름 돌아왔노','[사가을] 이상한 소리 말고','[!ME TaT RoN!] 단호하네..공주','[먹밥 ENTP] 담는 거 아닌 거 같음','[마라탕개발자] 맞아 맞아'],
+    13:['[아베] 어케 술은 가을이가 먹는데','[먹밥 ENTP] 근데 무리한 투자 하지마라 현재야','[먹밥 ENTP] 전기 씹고점이라 조정각 조금만 보겠습니다','[사가을] 야야 너는 젊다야','[몽자 ISFP] 뭔가 옮기고 옮기고'],
+    14:['[마라탕개발자] 걍 시발 전두환마냥','[먹밥 ENTP] 에이피알이 다 좋은데 거래량이 넘 적네','[아베] 충조깅 안 되나..?','[배민정(ENTJ)] ㅋㅋㅋㅋㅋ 개웃기네 진짜','[마라탕개발자] 걍 시원하게 보여줘'],
+    15:['[마라탕개발자] 뭐 걍 예쁜 영부인이지','[사가을] 임금님 귀는 당나귀귀','[몽자 ISFP] 미술하는 친구라 그런가...','[먹밥 ENTP] 진짜 나 하지마 이거','[마라탕개발자] 아베는 잠재적 성범죄자다!!!'],
+    16:['[몽자 ISFP] 선입견에 씌워져 있어서 후,,','[먹밥 ENTP] 내 경험에 기반으로는','[아베] 난 과학적으로 증명된 거 아니면 안 믿는다고','[몽자 ISFP] 첫번째 사진만 보면','[마라탕개발자] 걍 빨리 집 가고 싶다'],
+    17:['[먹밥 ENTP] 너 남친 이커머스 아니지','[사가을] 만스피 가야지~!','[배민정(ENTJ)] 안주 개 많은 거 알고 있었냐..?','[사가을] 내가 딱 너랑 같았거든?','[먹밥 ENTP] 그걸 왜 먹는지'],
+    18:['[사가을] 존나 선심 쓰듯이','[배민정(ENTJ)] 모두 네모난 것들뿐인데~~','[배민정(ENTJ)] 너랑 노는 건 극~! 술먹는 건 낙~! 너랑술먹으면 극☆락☆','[몽자 ISFP] 원래는 포장해옴,,','[사가을] 나 최근에도 마개랑'],
+    19:['[마라탕개발자] 너 한달 식비 얼마냐?','[아베] 왔어~','[먹밥 ENTP] 저녁 안 먹어야지....','[몽자 ISFP] 이악물고 찐따임을 부정하지만','[몽자 ISFP] ㅇㅎ 그럴 것 같았다'],
+    20:['[몽자 ISFP] 별로 상처 안 받을듯','[배민정(ENTJ)] 하나씩 지우면서 챙김','[배민정(ENTJ)] 주위를 둘러보면~','[!ME TaT RoN!] 요즘 젊은이들은','[아베] 그래 대한이 왔나'],
+    21:['[몽자 ISFP] 그냥 다른 생명체 같다는','[김재현 INTP] 여기는 고인방이야','[먹밥 ENTP] 이번 고가차도 무너진 거로 돌아가심 ㄷㄷ,,, 감리단장이셨대','[사가을] 분할매수하십시요','[김재현 INTP] 그럼 계엄은 언제 해?'],
+    22:['[김재현 INTP] 설명 한 10번 했는데 한번 더 해줄게','[몽자 ISFP] 집밥 잘해무것노?','[김재현 INTP] 차장님 왈 완전 미친년들이라고','[몽자 ISFP] 그럴 거면 왜 이야기하지 싶기도 함','[몽자 ISFP] 친구랑 나랑 남친이랑 셋이서 자주 놀아서'],
+    23:['[김재현 INTP] 글 내용 주절몽 너무 길다','[사가을] 자세나 표정 성격 다 ㅈㄴ 비슷함','[먹밥 ENTP] 야 이 사진은 이은해 닮았노','[몽자 ISFP] 사람취급도 암함 ㅋㅋ','[몽자 ISFP] 아 몰라'],
+    0:['[몽자 ISFP] 사지 건강한 거에 감사하며 살자,,','[먹밥 ENTP] 숏 금지 ㅋㅋㅋ','[김재현 INTP] 26000개 비싸','[마라탕개발자] 국물 깊이가 다름 맛이랑','[먹밥 ENTP] ㄹㅇ 걍 다 남의 일이라 생각하는 건가..?'],
+    7:['[김재현 INTP] 만 약에 라 면이 없었더라면~','[마라탕개발자] 이샛기 리재명이 군주라고 너무 즐기는 거 아냐?!','[김재현 INTP] 울산부산도 파랑 됐노','[아베] 마즘 루브도를 아세요?','[김재현 INTP] 너무 유리하잖아 맞냐 이게?'],
+    8:['[먹밥 ENTP] 금값 떨어지는 김에','[몽자 ISFP] 반팔 입었는데 추움','[먹밥 ENTP] 합리적 의심이다 ㄹㅇ','[김재현 INTP] 인플레이션 생각하면 전부 이해됨','[마라탕개발자] 오늘 날씨 개좋다']
+  },
+  wd:{
+    월:['[먹밥 ENTP] 근데 500 들고 있을 수 있으면','[마라탕개발자] 샵검색: #순금이네 떡볶이','[김재현 INTP] 이게 진짜 개지린다고','[사가을] ㅁㅏ 나가지마래이','[마라탕개발자] ㅋㅋㅋㅋㅋㅋㅋㅋㅋ'],
+    화:['[사가을] 아 말아탕 마렵다','[마라탕개발자] 걍 아직 오피셜이 아닌데','[사가을] 한번 더 온다는 게','[마라탕개발자] 스프 하나 다 넣으면','[몽자 ISFP] 뭔가 너네들은 어떰?'],
+    수:['[김재현 INTP] 옥문 보면 쏙 들어간다','[사가을] 국물이 예술이더라 간만에 먹으니까','[김재현 INTP] 시골이랑 차원이 다름','[사가을] 음봉을 의미하는 건가요?','[마라탕개발자] 오늘 고짬 좀 치노'],
+    목:['[몽자 ISFP] 추노도 했노 ㄷㄷ','[사가을] 에겐한 것들이 소면으로 먹지','[몽자 ISFP] 걔가 지 풀에 지쳐서 나간 듯','[김재현 INTP] 이거이거 시사에 워낙 관심이 없어서','[먹밥 ENTP] 한 쪽은 아무것도 안 해서 문제'],
+    금:['[몽자 ISFP] 저 사진이 닮았따','[먹밥 ENTP] 비수기 타서 그런가','[마라탕개발자] 걍 와서 보고 가','[내죵내 INTP] 당론이 너무 강해 사람들이','[배민정(ENTJ)] 응답해주는 거 어때?'],
+    토:['[먹밥 ENTP] 기념인지 팔지 ㅈㄴ 고민되노','[몽자 ISFP] 달러 1560원 돌파네','[마라탕개발자] 가을이한테 야지 ㅈㄴ먹음','[먹밥 ENTP] 투표 첨 해보나','[사가을] 수빈아 잘 지내냐...'],
+    일:['[몽자 ISFP] 자전거 타고 놀고 집 와서 점심','[김재현 INTP] 호박시루떡을 먹은 적이 있나?','[몽자 ISFP] 왜케 조용하노 ㄷㄷ','[마라탕개발자] 누가 여름에 감기를 걸리냐','[김재현 INTP] 술과 계집은 중요하지']
+  }
+};
+
+// Chart.js defaults
+Chart.defaults.color = '#7a7a7a';
+Chart.defaults.borderColor = '#e0e0e0';
+Chart.defaults.font.family = "'Apple SD Gothic Neo', -apple-system, sans-serif";
+Chart.defaults.font.size = 11;
+
+const BLUE = '#0066cc';
+const BLUE_COLORS = ['#0066cc','#2980d9','#5299e0','#7ab3e8','#a2ccf0','#cce0f7','#e6f0fb','#f0f6fd'];
+const MEMBER_COLORS = ['#0066cc','#1d7ed4','#3a97dc','#57b0e4','#74c9ec','#91e2f4','#aef5fc','#cbffff'];
+
+// ═══════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.g-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function openModal(badge, title, msgs) {
+  document.getElementById('modalBadge').textContent = badge;
+  document.getElementById('modalTitle').textContent = title;
+  const list = document.getElementById('modalList');
+  list.innerHTML = '';
+  if(!msgs || msgs.length===0) {
+    list.innerHTML = '<div class="modal-empty">해당 구간의 샘플 발화가 없습니다.</div>';
+  } else {
+    msgs.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'modal-msg';
+      const senderMatch = m.match(/^\[(.+?)\] (.+)$/);
+      if(senderMatch) {
+        div.innerHTML = `<div class="msg-sender">${senderMatch[1]}</div><div class="msg-text">${senderMatch[2]}</div>`;
+      } else {
+        div.innerHTML = `<div class="msg-text">${m}</div>`;
+      }
+      list.appendChild(div);
+    });
+  }
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(e) { if(e.target===document.getElementById('modalOverlay')) closeModalDirect(); }
+function closeModalDirect() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
+// ANIMATE COUNT
+// ═══════════════════════════════════════════
+function animCount(el, target, dur=1200) {
+  let s=0; const step=target/60;
+  const t=()=>{ s=Math.min(s+step,target); el.textContent=Math.round(s).toLocaleString(); if(s<target)requestAnimationFrame(t); };
+  requestAnimationFrame(t);
+}
+
+// ═══════════════════════════════════════════
+// OVERVIEW CHARTS & TABLES
+// ═══════════════════════════════════════════
+function buildOverview() {
+  // ── Daily Chart
+  const ctxD = document.getElementById('cDaily').getContext('2d');
+  const gradD = ctxD.createLinearGradient(0,0,0,200);
+  gradD.addColorStop(0,'rgba(0,102,204,0.18)'); gradD.addColorStop(1,'rgba(0,102,204,0)');
+  const chartDaily = new Chart(ctxD,{
+    type:'line',
+    data:{labels:DAILY.map(d=>d.d), datasets:[{label:'메시지',data:DAILY.map(d=>d.n),borderColor:BLUE,backgroundColor:gradD,borderWidth:2,pointRadius:3,pointBackgroundColor:BLUE,tension:0.35,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toLocaleString()}건`}}},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:10}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>v>=1000?v/1000+'k':v}}}}
+  });
+  // click on chart
+  document.getElementById('cDaily').addEventListener('click', e => {
+    const pts = chartDaily.getElementsAtEventForMode(e,'nearest',{intersect:true},true);
+    if(pts.length) { const i=pts[0].index; const d=DAILY[i]; openModal(d.d, `${d.d} 주요 발화`, SAMPLES.date[d.d]||[]); }
+  });
+  // ── Daily Table
+  const tbody = document.getElementById('tbodyDaily');
+  DAILY.forEach((d,i)=>{
+    const pct=(d.n/TOTAL*100).toFixed(1);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="td-rank">${i+1}</td><td class="td-name">${d.d}</td><td class="td-val">${d.n.toLocaleString()}</td><td class="td-pct">${pct}%</td>`;
+    tr.onclick=()=>openModal(d.d,`${d.d} 주요 발화`,SAMPLES.date[d.d]||[]);
+    tbody.appendChild(tr);
+  });
+
+  // ── Weekday Chart
+  const days=['월','화','수','목','금','토','일'];
+  const wdVals=days.map(d=>WD[d]);
+  const wdMax=Math.max(...wdVals);
+  new Chart(document.getElementById('cWeekday'),{
+    type:'bar',
+    data:{labels:days,datasets:[{data:wdVals,backgroundColor:wdVals.map(v=>v===wdMax?BLUE:'rgba(0,102,204,0.18)'),borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toLocaleString()}건`}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>v>=1000?v/1000+'k':v}}}}
+  });
+  const tbWd=document.getElementById('tbodyWd');
+  const wdTotal=Object.values(WD).reduce((a,b)=>a+b,0);
+  days.forEach(d=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="td-name">${d}요일</td><td class="td-val">${WD[d].toLocaleString()}</td><td class="td-pct">${(WD[d]/wdTotal*100).toFixed(1)}%</td>`;
+    tr.onclick=()=>openModal(d+'요일',`${d}요일 주요 발화`,SAMPLES.wd[d]||[]);
+    tbWd.appendChild(tr);
+  });
+
+  // ── Pie
+  const top8=MEMBERS.slice(0,8); const others=MEMBERS.slice(8).reduce((s,m)=>s+m.c,0);
+  new Chart(document.getElementById('cPie'),{
+    type:'doughnut',
+    data:{labels:[...top8.map(m=>m.n),'기타'],datasets:[{data:[...top8.map(m=>m.c),others],backgroundColor:[...MEMBER_COLORS,'#e8e8e8'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10,padding:6}},tooltip:{callbacks:{label:c=>`${c.raw.toLocaleString()}건 (${(c.raw/TOTAL*100).toFixed(1)}%)`}}}}
+  });
+  const tbPie=document.getElementById('tbodyPie');
+  MEMBERS.slice(0,8).forEach((m,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="td-rank ${['r1','r2','r3'][i]||''}">${i+1}</td><td class="td-name">${m.n}</td><td class="td-val">${m.c.toLocaleString()}</td><td class="td-pct">${(m.c/TOTAL*100).toFixed(1)}%</td>`;
+    tr.onclick=()=>openModal(m.n,`${m.n} 주요 발화`,SAMPLES.member[m.n]||[]);
+    tbPie.appendChild(tr);
+  });
+
+  // ── Media
+  const mk=Object.keys(MEDIA); const mv=Object.values(MEDIA); const mtotal=mv.reduce((a,b)=>a+b,0);
+  new Chart(document.getElementById('cMedia'),{
+    type:'doughnut',
+    data:{labels:mk,datasets:[{data:mv,backgroundColor:[BLUE,'#a78bfa','#34d399','#fb923c'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:12},boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.raw}건`}}}}
+  });
+  const tbMedia=document.getElementById('tbodyMedia');
+  mk.forEach((k,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="td-name">${k}</td><td class="td-val">${mv[i]}</td><td class="td-pct">${(mv[i]/mtotal*100).toFixed(0)}%</td>`;
+    tbMedia.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════
+// MEMBER CHARTS & TABLE
+// ═══════════════════════════════════════════
+function buildMembers() {
+  const top10=MEMBERS.slice(0,10);
+  const shorten=n=>n.length>7?n.slice(0,6)+'…':n;
+
+  new Chart(document.getElementById('cMemberBar'),{
+    type:'bar',
+    data:{labels:top10.map(m=>shorten(m.n)),datasets:[{data:top10.map(m=>m.c),backgroundColor:MEMBER_COLORS,borderRadius:4,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toLocaleString()}건`}}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>v>=1000?v/1000+'k':v}},y:{grid:{display:false}}}}
+  });
+
+  const sortedLen=[...MEMBERS].sort((a,b)=>b.al-a.al).slice(0,10);
+  new Chart(document.getElementById('cMsgLen'),{
+    type:'bar',
+    data:{labels:sortedLen.map(m=>shorten(m.n)),datasets:[{data:sortedLen.map(m=>m.al),backgroundColor:sortedLen.map(m=>m.al>=10?BLUE:m.al>=7?'rgba(0,102,204,0.5)':'rgba(0,102,204,0.2)'),borderRadius:4,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`평균 ${c.raw}자`}}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'}},y:{grid:{display:false}}}}
+  });
+
+  const tbody=document.getElementById('tbodyMember'); const mmax=MEMBERS[0].c;
+  const mbtiRe=/(ENTP|ENTJ|INTP|INTJ|ISFP|ISTP|INFP|INFJ)/;
+  MEMBERS.forEach((m,i)=>{
+    const pct=(m.c/TOTAL*100).toFixed(1);
+    const bw=Math.round(m.c/mmax*100);
+    const mb=m.n.match(mbtiRe);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td class="td-rank ${['r1','r2','r3'][i]||''}">${i+1}</td>
+      <td class="td-name">${m.n}${mb?`<span class="mbti">${mb[1]}</span>`:''}</td>
+      <td class="td-pct">${pct}%</td>
+      <td class="td-bar"><div class="mini-bar" style="width:${bw}%"></div></td>
+      <td class="td-val">${m.c.toLocaleString()}</td>
+      <td style="text-align:right;color:var(--ink-48);font-size:13px">${m.p||'-'}</td>
+      <td style="text-align:right;color:var(--ink-48);font-size:13px">${m.al}자</td>`;
+    tr.onclick=()=>openModal(m.n,`${m.n} 주요 발화`,SAMPLES.member[m.n]||[]);
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════
+// TIME CHARTS & HEATMAP
+// ═══════════════════════════════════════════
+function buildTime() {
+  const hours=Array.from({length:24},(_,i)=>i);
+  const hVals=hours.map(h=>HOURS[h]||0);
+  const hMax=Math.max(...hVals);
+
+  const chartH = new Chart(document.getElementById('cHour'),{
+    type:'bar',
+    data:{
+      labels:hours.map(h=>`${h}시`),
+      datasets:[{data:hVals,backgroundColor:hVals.map(v=>{const t=v/hMax; return t>0.7?BLUE:t>0.4?'rgba(0,102,204,0.55)':t>0.15?'rgba(0,102,204,0.28)':'rgba(0,102,204,0.1)';}),borderRadius:3,borderSkipped:false}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toLocaleString()}건`}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>v>=1000?v/1000+'k':v}}}}
+  });
+  document.getElementById('cHour').addEventListener('click', e => {
+    const pts=chartH.getElementsAtEventForMode(e,'nearest',{intersect:true},true);
+    if(pts.length){ const h=pts[0].index; openModal(`${h}시`,`${h}:00–${h+1}:00 주요 발화`,SAMPLES.hour[h]||[]); }
+  });
+
+  // Hour table
+  const htotal=hVals.reduce((a,b)=>a+b,0);
+  const tbH=document.getElementById('tbodyHour');
+  const timeCtx={6:'출근 준비',7:'출근길',8:'출근 직후',9:'오전 업무',10:'오전 피크',11:'점심 전',12:'점심시간',13:'점심 피크',14:'오후 업무',15:'오후 피크',16:'퇴근 준비',17:'퇴근길',18:'저녁',19:'저녁 이후',20:'야간',21:'밤',22:'심야',23:'심야',0:'새벽',1:'새벽'};
+  [10,13,11,15,14,16,12,17,9,18,22,8,21,20,19,7,23,0,1].forEach(h=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="td-name">${h}시</td><td class="td-val">${(HOURS[h]||0).toLocaleString()}</td><td class="td-pct">${((HOURS[h]||0)/htotal*100).toFixed(1)}%</td><td style="font-size:12px;color:var(--ink-48)">${timeCtx[h]||''}</td>`;
+    tr.onclick=()=>openModal(`${h}시`,`${h}:00–${h+1}:00 주요 발화`,SAMPLES.hour[h]||[]);
+    tbH.appendChild(tr);
+  });
+
+  // Heatmap
+  buildHeatmap();
+}
+
+function buildHeatmap() {
+  const wrap=document.getElementById('heatmapWrap');
+  const dayOrder=['월','화','수','목','금','토','일'];
+  const maxN=Math.max(...DAILY.map(d=>d.n));
+  function cellColor(n) {
+    const t=n/maxN;
+    if(n===0) return '#f5f5f7';
+    if(t<0.04) return '#dce8f7';
+    if(t<0.12) return '#b4d0ee';
+    if(t<0.25) return '#7eb3e4';
+    if(t<0.5)  return '#4a96da';
+    if(t<0.8)  return '#1f7acc';
+    return '#0066cc';
+  }
+
+  // Date header row
+  const dRow=document.createElement('div');
+  dRow.className='heatmap-date-row';
+  DAILY.forEach(d=>{
+    const lbl=document.createElement('div');
+    lbl.className='heatmap-date-lbl';
+    const p=d.d.split(' '); lbl.textContent=p[0].replace(/[월화수목금토일]/,'').replace('/','/');
+    lbl.textContent=d.d.split(' ')[0];
+    dRow.appendChild(lbl);
+  });
+  wrap.appendChild(dRow);
+
+  // Rows per weekday
+  const tip=document.getElementById('tip');
+  dayOrder.forEach(day=>{
+    const row=document.createElement('div'); row.className='heatmap-row';
+    const lbl=document.createElement('div'); lbl.className='heatmap-day-lbl'; lbl.textContent=day;
+    row.appendChild(lbl);
+    DAILY.forEach(d=>{
+      const cell=document.createElement('div'); cell.className='heatmap-cell';
+      if(d.wd===day){
+        cell.style.background=cellColor(d.n);
+        cell.addEventListener('mousemove',e=>{tip.style.display='block';tip.style.left=(e.clientX+10)+'px';tip.style.top=(e.clientY-36)+'px';tip.textContent=`${d.d}: ${d.n.toLocaleString()}건`;});
+        cell.addEventListener('mouseleave',()=>tip.style.display='none');
+        cell.addEventListener('click',()=>openModal(d.d,`${d.d} 주요 발화`,SAMPLES.date[d.d]||[]));
+      } else {
+        cell.style.background='#f0f0f2'; cell.style.cursor='default'; cell.style.opacity='0.4';
+      }
+      row.appendChild(cell);
+    });
+    wrap.appendChild(row);
+  });
+
+  // Legend
+  const leg=document.createElement('div');
+  leg.style.cssText='display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11px;color:var(--ink-48)';
+  leg.innerHTML='<span>적음</span>'+['#dce8f7','#b4d0ee','#7eb3e4','#4a96da','#1f7acc','#0066cc'].map(c=>`<div style="width:16px;height:10px;border-radius:2px;background:${c}"></div>`).join('')+'<span>많음</span>';
+  wrap.appendChild(leg);
+}
+
+// ═══════════════════════════════════════════
+// DAILY TAB
+// ═══════════════════════════════════════════
+function buildDaily() {
+  // Timeline
+  const tlWrap=document.getElementById('timelineWrap');
+  const maxN=Math.max(...DAILY.map(d=>d.n));
+  DAILY.forEach(d=>{
+    const w=Math.round(d.n/maxN*100);
+    const emoji=d.n>=3000?'🔥':d.n>=1000?'💬':d.n<50?'😴':'';
+    const row=document.createElement('div'); row.className='tl-row';
+    row.innerHTML=`<div class="tl-date">${d.d}</div><div class="tl-bar-wrap"><div class="tl-track"><div class="tl-fill" data-w="${w}" style="width:0%"></div></div><div class="tl-meta">${d.wd}요일 ${emoji}</div></div><div class="tl-count">${d.n.toLocaleString()}</div>`;
+    row.onclick=()=>openModal(d.d,`${d.d} 주요 발화`,SAMPLES.date[d.d]||[]);
+    tlWrap.appendChild(row);
+  });
+  setTimeout(()=>{document.querySelectorAll('.tl-fill').forEach(b=>b.style.width=b.dataset.w+'%');},100);
+
+  // Weekly
+  new Chart(document.getElementById('cWeekly'),{
+    type:'bar',
+    data:{labels:['1주차\n5/28-5/31','2주차\n6/1-6/7','3주차\n6/8-6/14','4주차\n6/15-'],datasets:[{data:[3066,4610,11496,1368],backgroundColor:['rgba(0,102,204,0.3)','rgba(0,102,204,0.45)',BLUE,'rgba(0,102,204,0.3)'],borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toLocaleString()}건`}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>v>=1000?v/1000+'k':v}}}}
+  });
+
+  // Weekday vs Weekend
+  new Chart(document.getElementById('cWdWe'),{
+    type:'doughnut',
+    data:{labels:['평일','주말'],datasets:[{data:[20088,492],backgroundColor:[BLUE,'#e8e8e8'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'bottom',labels:{font:{size:12},boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw.toLocaleString()}건 (${(c.raw/(20088+492)*100).toFixed(1)}%)`}}}}
+  });
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  animCount(document.getElementById('kv1'),20580);
+  animCount(document.getElementById('kv2'),1083);
+  buildOverview();
+  buildMembers();
+  buildTime();
+  buildDaily();
+});
+</script>
+</body>
+</html>
